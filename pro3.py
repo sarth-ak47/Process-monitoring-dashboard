@@ -3,57 +3,42 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
-import pandas as pd
 import collections
-import tkinter as tk
-from tkinter import ttk, messagebox
-import threading
-import time
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Initialize Dash app
 app = dash.Dash(__name__)
 
 # Store historical data for smooth line charts
-cpu_history = collections.deque(maxlen=50)
-memory_history = collections.deque(maxlen=50)
-disk_history = collections.deque(maxlen=50)
-net_history = collections.deque(maxlen=50)
+cpu_history = collections.deque(maxlen=30)
+memory_history = collections.deque(maxlen=30)
+disk_history = collections.deque(maxlen=30)
+net_history = collections.deque(maxlen=30)
 
 # Layout
 app.layout = html.Div(style={'backgroundColor': '#1e1e1e', 'color': 'white', 'textAlign': 'center', 'padding': '20px'}, children=[
     html.H1("Real-Time System Performance Dashboard", style={'color': '#FFD700'}),
     dcc.Interval(id='interval-component', interval=2000, n_intervals=0),  # Update every 2 seconds
     
-    html.Div([
-        html.H3("CPU Usage", style={'color': '#00FF00'}),
-        dcc.Graph(id='cpu-usage-graph')
-    ]),
-    
-    html.Div([
-        html.H3("Memory Usage", style={'color': '#FF4500'}),
-        dcc.Graph(id='memory-usage-graph')
-    ]),
-    
-    html.Div([
-        html.H3("Disk Usage", style={'color': '#1E90FF'}),
-        dcc.Graph(id='disk-usage-graph')
-    ]),
-    
-    html.Div([
-        html.H3("Network Activity", style={'color': '#8A2BE2'}),
-        dcc.Graph(id='net-usage-graph')
-    ]),
-    
-    html.Div([
-        html.H3("Resource Distribution", style={'color': '#FFD700'}),
-        dcc.Graph(id='resource-pie-chart')
-    ]),
-    
-    html.Div([
-        html.H3("Top Processes by CPU Usage", style={'color': '#FFA500'}),
-        dcc.Graph(id='top-processes-bar-chart')
+    html.Div(style={'display': 'flex', 'justifyContent': 'space-around', 'flexWrap': 'wrap'}, children=[
+        html.Div([
+            html.H3("CPU Usage", style={'color': '#00FF00'}),
+            dcc.Graph(id='cpu-usage-graph')
+        ], style={'width': '45%'}),
+        
+        html.Div([
+            html.H3("Memory Usage", style={'color': '#FF4500'}),
+            dcc.Graph(id='memory-usage-graph')
+        ], style={'width': '45%'}),
+        
+        html.Div([
+            html.H3("Disk Usage", style={'color': '#1E90FF'}),
+            dcc.Graph(id='disk-usage-graph')
+        ], style={'width': '45%'}),
+        
+        html.Div([
+            html.H3("Network Activity", style={'color': '#8A2BE2'}),
+            dcc.Graph(id='net-usage-graph')
+        ], style={'width': '45%'})
     ])
 ])
 
@@ -62,9 +47,7 @@ app.layout = html.Div(style={'backgroundColor': '#1e1e1e', 'color': 'white', 'te
     [Output('cpu-usage-graph', 'figure'),
      Output('memory-usage-graph', 'figure'),
      Output('disk-usage-graph', 'figure'),
-     Output('net-usage-graph', 'figure'),
-     Output('resource-pie-chart', 'figure'),
-     Output('top-processes-bar-chart', 'figure')],
+     Output('net-usage-graph', 'figure')],
     [Input('interval-component', 'n_intervals')]
 )
 def update_dashboard(n):
@@ -100,19 +83,8 @@ def update_dashboard(n):
     net_fig.add_trace(go.Scatter(y=list(net_history), mode='lines', name='Network Usage (MB)', line=dict(color='#8A2BE2')))
     net_fig.update_layout(title='Network Activity (MB)', xaxis_title='Time', yaxis_title='Data (MB)', plot_bgcolor='#222222', paper_bgcolor='#1e1e1e', font=dict(color='white'))
     
-    # Pie Chart for Resource Usage
-    pie_fig = go.Figure(data=[go.Pie(labels=['CPU', 'Memory', 'Disk'], values=[cpu_usage, memory_usage, disk_usage], hole=0.4)])
-    pie_fig.update_layout(title='Resource Distribution', paper_bgcolor='#1e1e1e', font=dict(color='white'))
-    
-    # Bar Chart for Top CPU-consuming Processes
-    processes = sorted(psutil.process_iter(['pid', 'name', 'cpu_percent']), key=lambda p: p.info['cpu_percent'], reverse=True)[:5]
-    process_names = [p.info['name'] for p in processes]
-    process_cpu = [p.info['cpu_percent'] for p in processes]
-    bar_fig = go.Figure([go.Bar(x=process_names, y=process_cpu, marker=dict(color='#FFA500'))])
-    bar_fig.update_layout(title='Top Processes by CPU Usage', xaxis_title='Process', yaxis_title='CPU Usage (%)', paper_bgcolor='#1e1e1e', font=dict(color='white'))
-    
-    return cpu_fig, memory_fig, disk_fig, net_fig, pie_fig, bar_fig
+    return cpu_fig, memory_fig, disk_fig, net_fig
 
 # Run the app
 if __name__ == '__main__':
-    app.run(debug=True)
+     app.run(debug=True)
