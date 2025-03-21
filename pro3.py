@@ -1,7 +1,7 @@
 import psutil
 import dash
 from dash import dcc, html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import collections
 
@@ -39,18 +39,24 @@ app.layout = html.Div(style={'backgroundColor': '#1e1e1e', 'color': 'white', 'te
             html.H3("Network Activity", style={'color': '#8A2BE2'}),
             dcc.Graph(id='net-usage-graph')
         ], style={'width': '45%'})
-    ])
+    ]),
+
+    html.H3("Running Processes", style={'color': '#FFD700', 'marginTop': '20px'}),
+    html.Button("More", id="more-button", n_clicks=0, style={'marginBottom': '10px', 'padding': '10px', 'backgroundColor': '#444', 'color': 'white'}),
+    html.Div(id='process-table-container')
 ])
 
-# Callbacks to update graphs
+# Callbacks to update graphs and process table
 @app.callback(
     [Output('cpu-usage-graph', 'figure'),
      Output('memory-usage-graph', 'figure'),
      Output('disk-usage-graph', 'figure'),
-     Output('net-usage-graph', 'figure')],
-    [Input('interval-component', 'n_intervals')]
+     Output('net-usage-graph', 'figure'),
+     Output('process-table-container', 'children')],
+    [Input('interval-component', 'n_intervals'),
+     Input('more-button', 'n_clicks')]
 )
-def update_dashboard(n):
+def update_dashboard(n, more_clicks):
     # Get system metrics
     cpu_usage = psutil.cpu_percent()
     memory_usage = psutil.virtual_memory().percent
@@ -83,7 +89,26 @@ def update_dashboard(n):
     net_fig.add_trace(go.Scatter(y=list(net_history), mode='lines', name='Network Usage (MB)', line=dict(color='#8A2BE2')))
     net_fig.update_layout(title='Network Activity (MB)', xaxis_title='Time', yaxis_title='Data (MB)', plot_bgcolor='#222222', paper_bgcolor='#1e1e1e', font=dict(color='white'))
     
-    return cpu_fig, memory_fig, disk_fig, net_fig
+    # Process Table
+    processes = []
+    for proc in psutil.process_iter(['pid', 'name', 'memory_percent', 'cpu_percent']):
+        try:
+            processes.append(proc.info)
+        except psutil.NoSuchProcess:
+            continue
+    
+    processes = sorted(processes, key=lambda x: x['cpu_percent'], reverse=True)
+    
+    limit = 20 if more_clicks == 0 else len(processes)
+    table_header = ["Process Name", "Process ID", "Memory Usage (%)", "CPU Usage (%)"]
+    table_rows = [[proc['name'], proc['pid'], f"{proc['memory_percent']:.2f}", f"{proc['cpu_percent']:.2f}"] for proc in processes[:limit]]
+    
+    process_table = html.Table([
+        html.Thead(html.Tr([html.Th(col, style={'padding': '10px', 'borderBottom': '2px solid white'}) for col in table_header])),
+        html.Tbody([html.Tr([html.Td(cell, style={'padding': '10px', 'borderBottom': '1px solid gray'}) for cell in row]) for row in table_rows])
+    ], style={'width': '80%', 'margin': 'auto', 'borderCollapse': 'collapse', 'color': 'white'})
+    
+    return cpu_fig, memory_fig, disk_fig, net_fig, process_table
 
 # Run the app
 if __name__ == '__main__':
